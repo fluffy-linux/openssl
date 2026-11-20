@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 #
 # TEST c-compress-pl with a number of examples and what should happen to them
 

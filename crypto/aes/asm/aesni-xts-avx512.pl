@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Copyright (C) 2023 Intel Corporation
 #
 # Licensed under the OpenSSL license (the "License").  You may not use

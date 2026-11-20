@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 
 # Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (C) Cavium networks Ltd. 2016.

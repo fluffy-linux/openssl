@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # This file is dual-licensed, meaning that you can use it under your
 # choice of either of the following two licenses:
 #

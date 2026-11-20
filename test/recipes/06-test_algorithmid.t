@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 
 # Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
 #

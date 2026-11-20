@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Author: Marc Bevand <bevand_m (at) epita.fr>
 # Copyright 2005-2025 The OpenSSL Project Authors. All Rights Reserved.
 #

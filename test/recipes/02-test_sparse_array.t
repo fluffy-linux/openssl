@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
 #

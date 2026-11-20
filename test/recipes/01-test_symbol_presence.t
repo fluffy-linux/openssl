@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # -*- mode: Perl -*-
 # Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #

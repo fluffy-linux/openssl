@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright 2017 [Ribose Inc.](https://www.ribose.com). All Rights Reserved.
 #

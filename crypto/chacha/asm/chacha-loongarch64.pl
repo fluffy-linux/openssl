@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Author: Min Zhou <zhoumin@loongson.cn>
 # Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
 #

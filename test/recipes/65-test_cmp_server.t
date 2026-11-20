@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright Nokia 2007-2020
 # Copyright Siemens AG 2015-2020

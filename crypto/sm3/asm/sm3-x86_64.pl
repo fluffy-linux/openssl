@@ -1,4 +1,4 @@
-#! /usr/bin/env perl
+#!/sw/perl/bin/perl
 # Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
 # Copyright (c) 2024, Intel Corporation. All Rights Reserved.
 #

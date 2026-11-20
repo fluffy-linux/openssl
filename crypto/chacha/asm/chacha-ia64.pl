@@ -1,4 +1,4 @@
-#!/usr/bin/env perl
+#!/sw/perl/bin/perl
 #
 # ====================================================================
 # Written by Andy Polyakov, @dot-asm, initially for use with OpenSSL.
