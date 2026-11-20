@@ -19,6 +19,10 @@
 #if !defined(OPENSSL_SYS_MSDOS)
 #include <unistd.h>
 #endif
+#if !defined(_WIN32)
+#include <glob.h>
+static int opt_iscapath(const char *name);
+#endif
 
 #include <stdlib.h>
 #include <errno.h>
@@ -945,8 +949,16 @@ int opt_next(void)
             /* Parameters */
             break;
         case '/':
+#if !defined(_WIN32)
+            if ((strstr(o->name, "CApath") != NULL
+                        ? opt_iscapath(arg)
+                        : opt_isdir(arg))
+                > 0)
+                break;
+#else
             if (opt_isdir(arg) > 0)
                 break;
+#endif
             opt_printf_stderr("%s: Not a directory: %s\n", prog, arg);
             return -1;
         case '<':
@@ -1272,5 +1284,102 @@ int opt_isdir(const char *name)
 #else
     return -1;
 #endif
+}
+
+static const char *opt_scan_bracket_end(const char *p)
+{
+    const char *q = p + 1;
+
+    if (*q == '!' || *q == '^')
+        q++;
+    if (*q == ']')
+        q++;
+    while (*q != '\0' && *q != '/' && *q != ']') {
+        if (*q == '[' && (q[1] == ':' || q[1] == '.' || q[1] == '=')) {
+            char kind = q[1];
+            const char *k = q + 2;
+
+            while (*k != '\0' && *k != '/' && (kind == '.' || *k != ']')) {
+                if (k[0] == kind && k[1] == ']') {
+                    q = k + 2;
+                    goto next_chr;
+                }
+                k++;
+            }
+        }
+        q++;
+    next_chr:;
+    }
+    return (*q == ']') ? (q + 1) : NULL;
+}
+
+static const char *opt_next_colon(const char *s)
+{
+    const char *p = s;
+
+    while (*p != '\0' && *p != ':') {
+        if (*p == '[') {
+            const char *end = opt_scan_bracket_end(p);
+
+            if (end != NULL) {
+                p = end;
+                continue;
+            }
+        }
+        p++;
+    }
+    return p;
+}
+
+static int opt_iscapath(const char *name)
+{
+    const char *s, *p;
+    int found = 0;
+
+    if (opt_isdir(name) > 0)
+        return 1;
+    if (strpbrk(name, ":*?[") == NULL)
+        return -1;
+
+    for (s = name;; s = p + 1) {
+        size_t len;
+        char *ent;
+
+        p = opt_next_colon(s);
+        len = (size_t)(p - s);
+        if (len > 0) {
+            ent = OPENSSL_strndup(s, len);
+            if (ent == NULL)
+                return -1;
+            if (opt_isdir(ent) > 0) {
+                found = 1;
+            } else if (strpbrk(ent, "*?[") != NULL) {
+                glob_t gbuf = { 0 };
+                size_t gi;
+                int grc = glob(ent, GLOB_NOESCAPE | GLOB_ONLYDIR, NULL, &gbuf);
+
+                if (grc == GLOB_NOSPACE) {
+                    globfree(&gbuf);
+                    OPENSSL_free(ent);
+                    return -1;
+                }
+                if (grc == 0) {
+                    for (gi = 0; gi < gbuf.gl_pathc; gi++) {
+                        if (opt_isdir(gbuf.gl_pathv[gi]) > 0) {
+                            found = 1;
+                            break;
+                        }
+                    }
+                }
+                globfree(&gbuf);
+            }
+            OPENSSL_free(ent);
+            if (found)
+                return 1;
+        }
+        if (*p == '\0')
+            break;
+    }
+    return -1;
 }
 #endif
