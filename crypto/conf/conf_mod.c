@@ -11,6 +11,10 @@
 #include "internal/rcu.h"
 #include <stdio.h>
 #include <ctype.h>
+#if !defined(_WIN32) && !defined(OPENSSL_SYS_VMS)
+#include <glob.h>
+#include <unistd.h>
+#endif
 #include <openssl/crypto.h>
 #include <openssl/conf.h>
 #include "internal/conf.h"
@@ -651,6 +655,11 @@ char *CONF_get1_default_config_file(void)
     if ((file = ossl_safe_getenv("OPENSSL_CONF")) != NULL)
         return OPENSSL_strdup(file);
 
+#if !defined(_WIN32) && !defined(OPENSSL_SYS_VMS)
+    if (access("/etc/ssl/" OPENSSL_CONF, R_OK) == 0)
+        return OPENSSL_strdup("/etc/ssl/" OPENSSL_CONF);
+#endif
+
     t = X509_get_default_cert_area();
     /*
      * On windows systems with -DOSSL_WINCTX set, if the needed registry
@@ -673,6 +682,32 @@ char *CONF_get1_default_config_file(void)
     if (file == NULL)
         return NULL;
     BIO_snprintf(file, size, "%s%s%s", t, sep, OPENSSL_CONF);
+
+#if !defined(_WIN32) && !defined(OPENSSL_SYS_VMS)
+    if (strpbrk(file, "*?[") != NULL) {
+        glob_t gbuf = { 0 };
+        int grc = glob(file, GLOB_NOESCAPE, NULL, &gbuf);
+        size_t gi;
+
+        OPENSSL_free(file);
+        if (grc == GLOB_NOSPACE) {
+            globfree(&gbuf);
+            return NULL;
+        }
+        if (grc == 0) {
+            for (gi = 0; gi < gbuf.gl_pathc; gi++) {
+                if (access(gbuf.gl_pathv[gi], R_OK) == 0) {
+                    char *match = OPENSSL_strdup(gbuf.gl_pathv[gi]);
+
+                    globfree(&gbuf);
+                    return match;
+                }
+            }
+        }
+        globfree(&gbuf);
+        return OPENSSL_strdup("/etc/ssl/" OPENSSL_CONF);
+    }
+#endif
 
     return file;
 }
