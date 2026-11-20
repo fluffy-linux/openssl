@@ -921,7 +921,7 @@ sub create_verifier {
 	my $filename="./compile_sve.sh";
 
 $scripts = <<___;
-#! /bin/bash
+#!/sw/bash/bin/bash
 set -e
 CROSS_COMPILE=\${CROSS_COMPILE:-'aarch64-none-linux-gnu-'}
 

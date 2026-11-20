@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/sw/bash/bin/bash -ex
 #
 # Copyright 2017-2026 The OpenSSL Project Authors. All Rights Reserved.
 #

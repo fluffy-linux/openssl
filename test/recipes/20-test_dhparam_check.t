@@ -22,7 +22,7 @@ plan skip_all => "DH isn't supported in this build"
 
 =pod Generation script
 
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 TESTDIR=test/recipes/20-test_dhparam_check_data/valid
 rm -rf $TESTDIR

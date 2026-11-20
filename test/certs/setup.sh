@@ -1,4 +1,4 @@
-#! /bin/bash
+#!/sw/bash/bin/bash
 
 # Primary root: root-cert
 ./mkcert.sh genroot "Root CA" root-key root-cert

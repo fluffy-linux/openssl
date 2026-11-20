@@ -1,4 +1,4 @@
-#!/bin/bash -eu
+#!/sw/bash/bin/bash -eu
 # Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").

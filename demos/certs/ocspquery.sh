@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 # Example querying OpenSSL test responder. Assumes ocsprun.sh has been
 # called.

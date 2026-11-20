@@ -20,7 +20,7 @@ setup("test_dsaparam");
 
 =pod Generation script
 
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 TESTDIR=test/recipes/15-test_dsaparam_data/valid
 rm -rf $TESTDIR

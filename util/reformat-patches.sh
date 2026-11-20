@@ -1,4 +1,4 @@
-#! /bin/sh -efu
+#!/sw/bash/bin/bash -efu
 
 # Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
 #

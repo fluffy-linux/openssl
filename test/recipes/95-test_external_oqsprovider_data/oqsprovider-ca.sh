@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/sw/bash/bin/bash
 
 # Test openssl CA functionality using oqsprovider for alg $1
 

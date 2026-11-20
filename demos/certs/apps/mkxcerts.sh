@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 # Create certificates using various algorithms to test multi-certificate
 # functionality.

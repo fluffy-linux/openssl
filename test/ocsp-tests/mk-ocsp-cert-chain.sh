@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/sw/bash/bin/bash
 
 opensslcmd() {
     LD_LIBRARY_PATH=../.. ../../apps/openssl $@
