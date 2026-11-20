@@ -65,6 +65,14 @@ C<$SRCTOP/test/recipes/99-foo_data/>.
 =cut
 
 use File::Copy;
+use File::Spec;
+{
+    no warnings 'redefine';
+    *File::Spec::Unix::path = sub {
+        return () unless exists $ENV{PATH};
+        return map { $_ eq '' ? '.' : (/\*/ ? glob($_) : $_) } split(':', $ENV{PATH}, -1);
+    };
+}
 use File::Spec::Functions qw/file_name_is_absolute curdir canonpath splitdir
                              catdir catfile splitpath catpath devnull abs2rel/;
 use File::Path 2.00 qw/rmtree mkpath/;

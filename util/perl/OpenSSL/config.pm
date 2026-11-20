@@ -16,6 +16,14 @@ use warnings;
 use Getopt::Std;
 use File::Basename;
 use File::Spec;
+use File::Spec;
+{
+    no warnings 'redefine';
+    *File::Spec::Unix::path = sub {
+        return () unless exists $ENV{PATH};
+        return map { $_ eq '' ? '.' : (/\*/ ? glob($_) : $_) } split(':', $ENV{PATH}, -1);
+    };
+}
 use IPC::Cmd;
 use POSIX;
 use Config;
