@@ -22,6 +22,9 @@
 #ifndef OPENSSL_NO_POSIX_IO
 #include <sys/stat.h>
 #include <fcntl.h>
+#if !defined(_WIN32) && !defined(OPENSSL_SYS_VMS)
+#include <glob.h>
+#endif
 #endif
 #include <ctype.h>
 #include <errno.h>
@@ -840,6 +843,69 @@ int load_crls(const char *uri, STACK_OF(X509_CRL) **crls,
 {
     if (desc == NULL)
         desc = "CRLs";
+#if !defined(OPENSSL_NO_POSIX_IO) && !defined(_WIN32) && !defined(OPENSSL_SYS_VMS)
+    if (uri != NULL && strstr(uri, "://") == NULL
+        && strpbrk(uri, "*?[") != NULL) {
+        struct stat st;
+
+        if (stat(uri, &st) != 0 || S_ISDIR(st.st_mode)) {
+            glob_t gbuf = { 0 };
+            size_t gi;
+            int loaded = 0;
+            int grc = glob(uri, GLOB_NOESCAPE, NULL, &gbuf);
+
+            if (grc == GLOB_NOSPACE) {
+                globfree(&gbuf);
+                BIO_puts(bio_err, "Out of memory loading CRLs\n");
+                return 0;
+            }
+            if (grc == 0) {
+                for (gi = 0; gi < gbuf.gl_pathc; gi++) {
+                    STACK_OF(X509_CRL) *one = NULL;
+                    int i;
+
+                    if (load_key_certs_crls(gbuf.gl_pathv[gi], FORMAT_UNDEF, 0,
+                            pass, desc, 1, NULL, NULL, NULL, NULL, NULL, NULL,
+                            &one, NULL)) {
+                        if (*crls == NULL
+                            && (*crls = sk_X509_CRL_new_null()) == NULL) {
+                            sk_X509_CRL_pop_free(one, X509_CRL_free);
+                            globfree(&gbuf);
+                            BIO_puts(bio_err, "Out of memory loading CRLs\n");
+                            return 0;
+                        }
+                        for (i = 0; i < sk_X509_CRL_num(one); i++) {
+                            X509_CRL *c = sk_X509_CRL_value(one, i);
+
+                            if (!sk_X509_CRL_push(*crls, c)) {
+                                while (i < sk_X509_CRL_num(one))
+                                    X509_CRL_free(sk_X509_CRL_value(one, i++));
+                                sk_X509_CRL_free(one);
+                                globfree(&gbuf);
+                                BIO_puts(bio_err, "Out of memory loading CRLs\n");
+                                return 0;
+                            }
+                        }
+                        sk_X509_CRL_free(one);
+                        loaded = 1;
+                    }
+                }
+                if (!loaded) {
+                    int rc = load_key_certs_crls(
+                        gbuf.gl_pathv[gbuf.gl_pathc - 1], FORMAT_UNDEF, 0,
+                        pass, desc, 0, NULL, NULL, NULL, NULL, NULL, NULL,
+                        crls, NULL);
+
+                    globfree(&gbuf);
+                    return rc;
+                }
+                globfree(&gbuf);
+                return 1;
+            }
+            globfree(&gbuf);
+        }
+    }
+#endif
     return load_key_certs_crls(uri, FORMAT_UNDEF, 0, pass, desc, 0,
         NULL, NULL, NULL, NULL, NULL, NULL, crls, NULL);
 }
