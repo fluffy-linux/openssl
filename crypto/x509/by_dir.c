@@ -19,6 +19,7 @@
 #include "internal/e_os.h"
 #include "internal/cryptlib.h"
 #include <stdio.h>
+#include <glob.h>
 #include <time.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -163,9 +164,88 @@ static void free_dir(X509_LOOKUP *lu)
     OPENSSL_free(a);
 }
 
+static int add_cert_dir_entry(BY_DIR *ctx, const char *ss, size_t len, int type)
+{
+    BY_DIR_ENTRY *ent;
+    int j;
+
+    for (j = 0; j < sk_BY_DIR_ENTRY_num(ctx->dirs); j++) {
+        ent = sk_BY_DIR_ENTRY_value(ctx->dirs, j);
+        if (strlen(ent->dir) == len && strncmp(ent->dir, ss, len) == 0)
+            return 1;
+    }
+    if (ctx->dirs == NULL) {
+        ctx->dirs = sk_BY_DIR_ENTRY_new_null();
+        if (!ctx->dirs) {
+            ERR_raise(ERR_LIB_X509, ERR_R_CRYPTO_LIB);
+            return 0;
+        }
+    }
+    ent = OPENSSL_malloc(sizeof(*ent));
+    if (ent == NULL)
+        return 0;
+    ent->dir_type = type;
+    ent->hashes = sk_BY_DIR_HASH_new(by_dir_hash_cmp);
+    ent->dir = OPENSSL_strndup(ss, len);
+    if (ent->dir == NULL || ent->hashes == NULL) {
+        by_dir_entry_free(ent);
+        return 0;
+    }
+    if (!sk_BY_DIR_ENTRY_push(ctx->dirs, ent)) {
+        by_dir_entry_free(ent);
+        ERR_raise(ERR_LIB_X509, ERR_R_CRYPTO_LIB);
+        return 0;
+    }
+    return 1;
+}
+
+static const char *by_dir_scan_bracket_end(const char *p)
+{
+    const char *q = p + 1;
+
+    if (*q == '!' || *q == '^')
+        q++;
+    if (*q == ']')
+        q++;
+    while (*q != '\0' && *q != '/' && *q != ']') {
+        if (*q == '[' && (q[1] == ':' || q[1] == '.' || q[1] == '=')) {
+            char kind = q[1];
+            const char *k = q + 2;
+
+            while (*k != '\0' && *k != '/' && (kind == '.' || *k != ']')) {
+                if (k[0] == kind && k[1] == ']') {
+                    q = k + 2;
+                    goto next_chr;
+                }
+                k++;
+            }
+        }
+        q++;
+    next_chr:;
+    }
+    return (*q == ']') ? (q + 1) : NULL;
+}
+
+static const char *by_dir_next_sep(const char *s)
+{
+    const char *p = s;
+
+    while (*p != '\0' && *p != LIST_SEPARATOR_CHAR) {
+        if (LIST_SEPARATOR_CHAR == ':' && *p == '[') {
+            const char *end = by_dir_scan_bracket_end(p);
+
+            if (end != NULL) {
+                p = end;
+                continue;
+            }
+        }
+        p++;
+    }
+    return p;
+}
+
 static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
 {
-    int j;
     size_t len;
     const char *s, *ss, *p;
 
@@ -174,48 +254,55 @@ static int add_cert_dir(BY_DIR *ctx, const char *dir, int type)
         return 0;
     }
 
-    s = dir;
-    p = s;
-    do {
-        if ((*p == LIST_SEPARATOR_CHAR) || (*p == '\0')) {
-            BY_DIR_ENTRY *ent;
+    for (s = dir;; s = p + 1) {
+        p = by_dir_next_sep(s);
+        ss = s;
+        len = (size_t)(p - ss);
+        if (len > 0) {
+            if (memchr(ss, '*', len) != NULL
+                || memchr(ss, '?', len) != NULL
+                || memchr(ss, '[', len) != NULL) {
+                char *pat = OPENSSL_strndup(ss, len);
+                struct stat st;
+                glob_t gbuf = { 0 };
+                size_t gi;
+                int grc;
 
-            ss = s;
-            s = p + 1;
-            len = p - ss;
-            if (len == 0)
-                continue;
-            for (j = 0; j < sk_BY_DIR_ENTRY_num(ctx->dirs); j++) {
-                ent = sk_BY_DIR_ENTRY_value(ctx->dirs, j);
-                if (strlen(ent->dir) == len && strncmp(ent->dir, ss, len) == 0)
-                    break;
-            }
-            if (j < sk_BY_DIR_ENTRY_num(ctx->dirs))
-                continue;
-            if (ctx->dirs == NULL) {
-                ctx->dirs = sk_BY_DIR_ENTRY_new_null();
-                if (!ctx->dirs) {
-                    ERR_raise(ERR_LIB_X509, ERR_R_CRYPTO_LIB);
+                if (pat == NULL)
+                    return 0;
+                if (stat(pat, &st) == 0 && S_ISDIR(st.st_mode)) {
+                    OPENSSL_free(pat);
+                    if (!add_cert_dir_entry(ctx, ss, len, type))
+                        return 0;
+                    goto next_seg;
+                }
+                grc = glob(pat, GLOB_NOESCAPE | GLOB_ONLYDIR, NULL, &gbuf);
+                OPENSSL_free(pat);
+                if (grc == GLOB_NOSPACE) {
+                    globfree(&gbuf);
+                    ERR_raise(ERR_LIB_X509, ERR_R_MALLOC_FAILURE);
                     return 0;
                 }
+                if (grc == 0) {
+                    for (gi = 0; gi < gbuf.gl_pathc; gi++) {
+                        if (!add_cert_dir_entry(ctx, gbuf.gl_pathv[gi],
+                                strlen(gbuf.gl_pathv[gi]), type)) {
+                            globfree(&gbuf);
+                            return 0;
+                        }
+                    }
+                    globfree(&gbuf);
+                    goto next_seg;
+                }
+                globfree(&gbuf);
             }
-            ent = OPENSSL_malloc(sizeof(*ent));
-            if (ent == NULL)
+            if (!add_cert_dir_entry(ctx, ss, len, type))
                 return 0;
-            ent->dir_type = type;
-            ent->hashes = sk_BY_DIR_HASH_new(by_dir_hash_cmp);
-            ent->dir = OPENSSL_strndup(ss, len);
-            if (ent->dir == NULL || ent->hashes == NULL) {
-                by_dir_entry_free(ent);
-                return 0;
-            }
-            if (!sk_BY_DIR_ENTRY_push(ctx->dirs, ent)) {
-                by_dir_entry_free(ent);
-                ERR_raise(ERR_LIB_X509, ERR_R_CRYPTO_LIB);
-                return 0;
-            }
         }
-    } while (*p++ != '\0');
+    next_seg:
+        if (*p == '\0')
+            break;
+    }
     return 1;
 }
 
